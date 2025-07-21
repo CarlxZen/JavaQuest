@@ -1,4 +1,4 @@
-package com.czx.javaquest.entities;
+package entities;
 
 import java.awt.Graphics;
 

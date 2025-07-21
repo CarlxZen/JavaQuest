@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.czx</groupId>
@@ -10,134 +9,11 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <lwjgl.version>3.3.2</lwjgl.version>
-        <joml.version>1.10.8</joml.version>
         <java.version>21</java.version>
     </properties>
-
-    <profiles>
-        <!-- Windows -->
-        <profile>
-            <id>windows</id>
-            <activation>
-                <os>
-                    <family>Windows</family>
-                </os>
-            </activation>
-            <properties>
-                <native.classifier>natives-windows</native.classifier>
-            </properties>
-        </profile>
-
-        <!-- MacOS (ARM64) -->
-        <profile>
-            <id>macos-arm64</id>
-            <activation>
-                <os>
-                    <name>Mac OS X</name>
-                    <arch>aarch64</arch>
-                </os>
-            </activation>
-            <properties>
-                <native.classifier>natives-macos-arm64</native.classifier>
-            </properties>
-        </profile>
-
-        <!-- Linux -->
-        <profile>
-            <id>linux</id>
-            <activation>
-                <os>
-                    <family>Linux</family>
-                </os>
-            </activation>
-            <properties>
-                <native.classifier>natives-linux</native.classifier>
-            </properties>
-        </profile>
-    </profiles>
-
-    <dependencies>
-        <!-- LWJGL core & essentials -->
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl</artifactId>
-            <version>${lwjgl.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-opengl</artifactId>
-            <version>${lwjgl.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-glfw</artifactId>
-            <version>${lwjgl.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-stb</artifactId>
-            <version>${lwjgl.version}</version>
-        </dependency>
-
-        <!-- Native libraries (runtime) -->
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl</artifactId>
-            <version>${lwjgl.version}</version>
-            <classifier>${native.classifier}</classifier>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-opengl</artifactId>
-            <version>${lwjgl.version}</version>
-            <classifier>${native.classifier}</classifier>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-glfw</artifactId>
-            <version>${lwjgl.version}</version>
-            <classifier>${native.classifier}</classifier>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-stb</artifactId>
-            <version>${lwjgl.version}</version>
-            <classifier>${native.classifier}</classifier>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- Math library -->
-        <dependency>
-            <groupId>org.joml</groupId>
-            <artifactId>joml</artifactId>
-            <version>${joml.version}</version>
-        </dependency>
-
-        <!-- Logging -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>2.23.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.23.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j2-impl</artifactId>
-            <version>2.23.1</version>
-        </dependency>
-    </dependencies>
-
+    
     <build>
         <plugins>
-            <!-- Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -147,7 +23,6 @@
                     <target>${java.version}</target>
                 </configuration>
             </plugin>
-            <!-- Shade plugin per generare un jar eseguibile -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -163,7 +38,7 @@
                 <configuration>
                     <transformers>
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                            <mainClass>com.czx.javaquest.Main</mainClass>
+                            <mainClass>game.Main</mainClass>
                         </transformer>
                     </transformers>
                 </configuration>
