@@ -1,6 +1,8 @@
 package game;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -13,6 +15,8 @@ import java.awt.event.KeyEvent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
+import entities.DamageNumber;
+import entities.Enemy;
 import entities.Player;
 import rendering.Render;
 import utils.Logger;
@@ -25,7 +29,9 @@ public class Main extends JPanel {
 
     private GameState gameState = GameState.TITLE_SCREEN;
     private int selectedOption = 0;
+    private int gameOverSelection = 0;
     private static final String[] TITLE_OPTIONS = { "Nuova Partita", "Continua Partita", "Opzioni" };
+    private static final String[] GAME_OVER_OPTIONS = { "Riprova", "Menu Principale" };
 
     public Main() {
         setPreferredSize(new Dimension(width, height));
@@ -43,6 +49,9 @@ public class Main extends JPanel {
                     case PLAYING:
                         handleGameInput(key);
                         break;
+                    case GAME_OVER:
+                        handleGameOverInput(key);
+                        break;
                     case OPTIONS:
                         handleOptionsInput(key);
                         break;
@@ -51,10 +60,10 @@ public class Main extends JPanel {
 
             @Override
             public void keyReleased(KeyEvent e) {
-                if (gameState == GameState.PLAYING) {
+                if (gameState == GameState.PLAYING && player != null) {
                     int key = e.getKeyCode();
-                    if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_UP
-                            || key == KeyEvent.VK_DOWN) {
+                    if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_RIGHT
+                            || key == KeyEvent.VK_UP || key == KeyEvent.VK_DOWN) {
                         player.stopWalking();
                     }
                 }
@@ -64,23 +73,15 @@ public class Main extends JPanel {
         new javax.swing.Timer(30, evt -> {
             if (gameState == GameState.PLAYING && player != null) {
                 // Aggiorna posizione solo se non c'è ostacolo
-                int nextX = player.getX();
-                int nextY = player.getY();
-                if (playerIsMoving()) {
+                if (playerIsMoving() && !player.isAttacking()) {
+                    int nextX = player.getX();
+                    int nextY = player.getY();
                     int dx = 0, dy = 0;
                     switch (player.getWalkDir()) {
-                        case 0:
-                            dy = 1;
-                            break;
-                        case 1:
-                            dx = -1;
-                            break;
-                        case 2:
-                            dx = 1;
-                            break;
-                        case 3:
-                            dy = -1;
-                            break;
+                        case 0: dy = 1; break;
+                        case 1: dx = -1; break;
+                        case 2: dx = 1; break;
+                        case 3: dy = -1; break;
                     }
                     nextX += dx * player.getSpeed();
                     nextY += dy * player.getSpeed();
@@ -91,6 +92,15 @@ public class Main extends JPanel {
                     }
                 } else {
                     player.update();
+                }
+
+                // Game logic (combat, enemies, damage numbers)
+                game.update();
+
+                // Check player death
+                if (!player.isAlive()) {
+                    gameState = GameState.GAME_OVER;
+                    gameOverSelection = 0;
                 }
             }
             repaint();
@@ -121,20 +131,45 @@ public class Main extends JPanel {
     }
 
     private void handleGameInput(int key) {
+        // Z = Attacco
+        if (key == KeyEvent.VK_Z) {
+            if (player != null) player.attack();
+            return;
+        }
+        // Escape = torna al menu
+        if (key == KeyEvent.VK_ESCAPE) {
+            gameState = GameState.TITLE_SCREEN;
+            selectedOption = 0;
+            return;
+        }
+        // No movement during attack
+        if (player != null && player.isAttacking()) return;
+
         int dx = 0, dy = 0;
-        if (key == KeyEvent.VK_LEFT)
-            dx = -1;
-        if (key == KeyEvent.VK_RIGHT)
-            dx = 1;
-        if (key == KeyEvent.VK_UP)
-            dy = -1;
-        if (key == KeyEvent.VK_DOWN)
-            dy = 1;
+        if (key == KeyEvent.VK_LEFT) dx = -1;
+        if (key == KeyEvent.VK_RIGHT) dx = 1;
+        if (key == KeyEvent.VK_UP) dy = -1;
+        if (key == KeyEvent.VK_DOWN) dy = 1;
+        if (dx == 0 && dy == 0) return;
+
         // Simula movimento solo se non c'è ostacolo
         int nextX = player.getX() + dx * player.getSpeed();
         int nextY = player.getY() + dy * player.getSpeed();
         if (!game.isBlocked(nextX, nextY)) {
             player.startWalking(dx, dy);
+        }
+    }
+
+    private void handleGameOverInput(int key) {
+        if (key == KeyEvent.VK_UP || key == KeyEvent.VK_DOWN) {
+            gameOverSelection = (gameOverSelection + 1) % GAME_OVER_OPTIONS.length;
+        } else if (key == KeyEvent.VK_ENTER) {
+            if (gameOverSelection == 0) {
+                startNewGame();
+            } else {
+                gameState = GameState.TITLE_SCREEN;
+                selectedOption = 0;
+            }
         }
     }
 
@@ -160,6 +195,7 @@ public class Main extends JPanel {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         switch (gameState) {
             case TITLE_SCREEN:
@@ -167,6 +203,10 @@ public class Main extends JPanel {
                 break;
             case PLAYING:
                 paintGame(g2);
+                break;
+            case GAME_OVER:
+                paintGame(g2);
+                paintGameOver(g2);
                 break;
             case OPTIONS:
                 paintOptions(g2);
@@ -238,16 +278,161 @@ public class Main extends JPanel {
         for (int y = 0; y < map.length; y++) {
             for (int x = 0; x < map[0].length; x++) {
                 if (map[y][x] == 1) {
-                    g.setColor(Color.DARK_GRAY);
+                    g.setColor(new Color(60, 50, 45));
                     g.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    g.setColor(new Color(80, 70, 60));
+                    g.drawRect(x * tileSize, y * tileSize, tileSize - 1, tileSize - 1);
                 } else {
-                    g.setColor(Color.LIGHT_GRAY);
+                    g.setColor(new Color(120, 160, 80));
                     g.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    // Motivo erba sottile
+                    g.setColor(new Color(110, 150, 70));
+                    if ((x + y) % 2 == 0) {
+                        g.fillRect(x * tileSize + 8, y * tileSize + 8, 2, 2);
+                        g.fillRect(x * tileSize + 20, y * tileSize + 22, 2, 2);
+                    }
                 }
             }
         }
+
+        // Renderizza i nemici
+        for (Enemy enemy : game.getEnemies()) {
+            enemy.render(g);
+        }
+
         // Renderizza il player
         player.render(g);
+
+        // Numeri di danno
+        for (DamageNumber dn : game.getDamageNumbers()) {
+            dn.render(g);
+        }
+
+        // HUD
+        paintHUD(g);
+    }
+
+    private void paintHUD(Graphics2D g) {
+        int hudY = height - 48;
+
+        // Sfondo semi-trasparente
+        Composite oldComp = g.getComposite();
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.75f));
+        g.setColor(new Color(20, 20, 30));
+        g.fillRect(0, hudY, width, 48);
+        g.setComposite(oldComp);
+
+        // Barra HP
+        int barX = 16;
+        int barY = hudY + 10;
+        int barW = 160;
+        int barH = 14;
+
+        // Etichetta HP
+        g.setFont(new Font("SansSerif", Font.BOLD, 11));
+        g.setColor(Color.WHITE);
+        g.drawString("HP", barX, barY - 2);
+
+        // Sfondo barra
+        g.setColor(new Color(40, 10, 10));
+        g.fillRect(barX, barY, barW, barH);
+
+        // Riempimento HP
+        float hpPct = (float) player.getHp() / player.getMaxHp();
+        Color hpColor = hpPct > 0.5f ? new Color(50, 200, 50) :
+                         hpPct > 0.25f ? new Color(220, 200, 30) :
+                         new Color(220, 40, 40);
+        g.setColor(hpColor);
+        g.fillRect(barX, barY, (int) (barW * hpPct), barH);
+
+        // Bordo barra
+        g.setColor(new Color(100, 100, 100));
+        g.drawRect(barX, barY, barW, barH);
+
+        // Testo HP
+        g.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g.setColor(Color.WHITE);
+        String hpText = player.getHp() + " / " + player.getMaxHp();
+        FontMetrics hpFm = g.getFontMetrics();
+        g.drawString(hpText, barX + (barW - hpFm.stringWidth(hpText)) / 2, barY + 11);
+
+        // Oro
+        g.setFont(new Font("SansSerif", Font.BOLD, 14));
+        g.setColor(new Color(255, 220, 50));
+        g.drawString("Oro: " + game.getGold(), barX, hudY + 42);
+
+        // Livello
+        g.setColor(new Color(200, 200, 255));
+        g.drawString("Lv. 1", width - 70, hudY + 24);
+
+        // Contatore nemici
+        int enemyCount = game.getEnemies().size();
+        if (enemyCount > 0) {
+            g.setFont(new Font("SansSerif", Font.BOLD, 12));
+            g.setColor(new Color(255, 150, 150));
+            g.drawString("Nemici: " + enemyCount, 220, hudY + 24);
+        } else {
+            g.setFont(new Font("SansSerif", Font.BOLD, 12));
+            g.setColor(new Color(150, 255, 150));
+            g.drawString("Area sicura!", 220, hudY + 24);
+        }
+
+        // Istruzioni controlli
+        g.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        g.setColor(new Color(150, 150, 150));
+        g.drawString("[Z] Attacco  [ESC] Menu", width - 180, hudY + 42);
+    }
+
+    private void paintGameOver(Graphics2D g) {
+        // Overlay scuro
+        Composite oldComp = g.getComposite();
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, width, height);
+        g.setComposite(oldComp);
+
+        // Titolo
+        g.setFont(new Font("Serif", Font.BOLD, 48));
+        g.setColor(new Color(200, 40, 40));
+        String title = "Sei Caduto";
+        FontMetrics fmTitle = g.getFontMetrics();
+        int titleX = (width - fmTitle.stringWidth(title)) / 2;
+        g.drawString(title, titleX, 180);
+
+        // Opzioni
+        Font menuFont = new Font("SansSerif", Font.PLAIN, 22);
+        Font menuFontSel = new Font("SansSerif", Font.BOLD, 24);
+        int startY = 280;
+        int spacing = 50;
+
+        for (int i = 0; i < GAME_OVER_OPTIONS.length; i++) {
+            boolean isSelected = (i == gameOverSelection);
+            if (isSelected) {
+                g.setFont(menuFontSel);
+                g.setColor(new Color(255, 220, 80));
+            } else {
+                g.setFont(menuFont);
+                g.setColor(Color.WHITE);
+            }
+            FontMetrics fm = g.getFontMetrics();
+            String text = GAME_OVER_OPTIONS[i];
+            int textX = (width - fm.stringWidth(text)) / 2;
+            int textY = startY + i * spacing;
+            g.drawString(text, textX, textY);
+            if (isSelected) {
+                String arrow = "\u25B6";
+                int arrowX = textX - fm.stringWidth(arrow) - 10;
+                g.drawString(arrow, arrowX, textY);
+            }
+        }
+
+        // Istruzioni
+        g.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        g.setColor(new Color(150, 150, 150));
+        String hint = "Usa \u2191\u2193 per navigare, INVIO per confermare";
+        FontMetrics fmHint = g.getFontMetrics();
+        int hintX = (width - fmHint.stringWidth(hint)) / 2;
+        g.drawString(hint, hintX, height - 60);
     }
 
     private void paintOptions(Graphics2D g) {
@@ -288,6 +473,7 @@ public class Main extends JPanel {
         frame.setContentPane(mainPanel);
         frame.pack();
         frame.setLocationRelativeTo(null);
+        frame.setResizable(false);
         frame.setVisible(true);
     }
 }
