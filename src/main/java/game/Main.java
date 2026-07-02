@@ -2,8 +2,6 @@ package game;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -15,6 +13,7 @@ import javax.swing.JPanel;
 
 import entities.Player;
 import rendering.Render;
+import ui.MenuRenderer;
 import utils.Logger;
 
 public class Main extends JPanel {
@@ -25,6 +24,7 @@ public class Main extends JPanel {
 
     private GameState gameState = GameState.TITLE_SCREEN;
     private int selectedOption = 0;
+    private float menuAnimPhase = 0f;
     private static final String[] TITLE_OPTIONS = { "Nuova Partita", "Continua Partita", "Opzioni" };
 
     public Main() {
@@ -62,6 +62,9 @@ public class Main extends JPanel {
         });
         // Timer per aggiornare animazione e movimento
         new javax.swing.Timer(30, evt -> {
+            if (gameState == GameState.TITLE_SCREEN || gameState == GameState.OPTIONS) {
+                menuAnimPhase += 0.04f;
+            }
             if (gameState == GameState.PLAYING && player != null) {
                 // Aggiorna posizione solo se non c'è ostacolo
                 int nextX = player.getX();
@@ -175,60 +178,7 @@ public class Main extends JPanel {
     }
 
     private void paintTitleScreen(Graphics2D g) {
-        // Sfondo
-        g.setColor(Color.BLACK);
-        g.fillRect(0, 0, width, height);
-
-        // Titolo
-        g.setFont(new Font("Serif", Font.BOLD, 52));
-        g.setColor(new Color(200, 170, 50));
-        String title = "JavaQuest";
-        FontMetrics fmTitle = g.getFontMetrics();
-        int titleX = (width - fmTitle.stringWidth(title)) / 2;
-        g.drawString(title, titleX, 140);
-
-        // Opzioni del menu
-        Font menuFont = new Font("SansSerif", Font.PLAIN, 24);
-        Font menuFontSelected = new Font("SansSerif", Font.BOLD, 26);
-        int startY = 250;
-        int spacing = 50;
-
-        for (int i = 0; i < TITLE_OPTIONS.length; i++) {
-            boolean isDisabled = (i == 1); // "Continua Partita" disabilitato
-            boolean isSelected = (i == selectedOption);
-
-            if (isSelected) {
-                g.setFont(menuFontSelected);
-                g.setColor(new Color(255, 220, 80));
-            } else if (isDisabled) {
-                g.setFont(menuFont);
-                g.setColor(new Color(100, 100, 100));
-            } else {
-                g.setFont(menuFont);
-                g.setColor(Color.WHITE);
-            }
-
-            FontMetrics fm = g.getFontMetrics();
-            String text = TITLE_OPTIONS[i];
-            int textX = (width - fm.stringWidth(text)) / 2;
-            int textY = startY + i * spacing;
-            g.drawString(text, textX, textY);
-
-            // Freccia indicatore per l'opzione selezionata
-            if (isSelected) {
-                String arrow = "\u25B6";
-                int arrowX = textX - fm.stringWidth(arrow) - 10;
-                g.drawString(arrow, arrowX, textY);
-            }
-        }
-
-        // Istruzioni in basso
-        g.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        g.setColor(new Color(150, 150, 150));
-        String hint = "Usa \u2191\u2193 per navigare, INVIO per confermare";
-        FontMetrics fmHint = g.getFontMetrics();
-        int hintX = (width - fmHint.stringWidth(hint)) / 2;
-        g.drawString(hint, hintX, height - 40);
+        MenuRenderer.renderTitleScreen(g, width, height, TITLE_OPTIONS, selectedOption, menuAnimPhase);
     }
 
     private void paintGame(Graphics2D g) {
@@ -251,33 +201,7 @@ public class Main extends JPanel {
     }
 
     private void paintOptions(Graphics2D g) {
-        // Sfondo
-        g.setColor(Color.BLACK);
-        g.fillRect(0, 0, width, height);
-
-        // Titolo
-        g.setFont(new Font("Serif", Font.BOLD, 40));
-        g.setColor(new Color(200, 170, 50));
-        String title = "Opzioni";
-        FontMetrics fmTitle = g.getFontMetrics();
-        int titleX = (width - fmTitle.stringWidth(title)) / 2;
-        g.drawString(title, titleX, 140);
-
-        // Messaggio vuoto
-        g.setFont(new Font("SansSerif", Font.PLAIN, 18));
-        g.setColor(new Color(180, 180, 180));
-        String msg = "Nessuna opzione disponibile.";
-        FontMetrics fmMsg = g.getFontMetrics();
-        int msgX = (width - fmMsg.stringWidth(msg)) / 2;
-        g.drawString(msg, msgX, height / 2);
-
-        // Istruzioni
-        g.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        g.setColor(new Color(150, 150, 150));
-        String hint = "Premi ESC per tornare al menu";
-        FontMetrics fmHint = g.getFontMetrics();
-        int hintX = (width - fmHint.stringWidth(hint)) / 2;
-        g.drawString(hint, hintX, height - 40);
+        MenuRenderer.renderOptionsScreen(g, width, height, menuAnimPhase);
     }
 
     public static void main(String[] args) {
